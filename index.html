@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kids Math Game - Online Fun Math Learning</title>
+  <meta name="description" content="A fun and interactive online math game for kids featuring addition, subtraction, multiplication, division, avatar shop, voice assistance in English & Burmese, and combo rewards!">
+  <!-- Google Fonts: Fredoka & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Background Canvas for Confetti -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Top Navigation Header -->
+    <header class="game-header">
+      <button id="btn-home" class="icon-btn" title="Home" aria-label="Go Home">🏠</button>
+      
+      <div class="audio-control">
+        <span class="music-icon">🎵</span>
+        <input type="range" id="music-slider" min="0" max="1" step="0.05" value="0.3" aria-label="Music Volume">
+      </div>
+
+      <div class="right-controls">
+        <button id="btn-lang" class="pill-btn" aria-label="Toggle Language">EN</button>
+        <button id="btn-voice" class="icon-btn" aria-label="Toggle Voice">🔊</button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTAINER WITH SCREENS -->
+    <main id="screen-container">
+
+      <!-- 1. MAIN MENU SCREEN -->
+      <section id="screen-menu" class="screen active">
+        <div class="profile-badge">
+          <div id="equipped-avatar-display" class="avatar-icon"></div>
+          <div class="coin-badge">
+            <span class="coin-icon">🪙</span>
+            <span id="menu-coin-count">0</span>
+          </div>
+          <button id="btn-shop-trigger" class="shop-badge-btn">🛒 Shop</button>
+        </div>
+
+        <h1 class="game-title">Math Game</h1>
+        <p class="subtitle">Choose a Game Mode</p>
+
+        <div class="menu-grid">
+          <button class="mode-btn btn-add" data-op="+">
+            <span class="btn-emoji">➕</span> Addition
+          </button>
+          <button class="mode-btn btn-sub" data-op="-">
+            <span class="btn-emoji">➖</span> Subtraction
+          </button>
+          <button class="mode-btn btn-mul" data-op="*">
+            <span class="btn-emoji">✖️</span> Multiplication
+          </button>
+          <button class="mode-btn btn-div" data-op="/">
+            <span class="btn-emoji">➗</span> Division
+          </button>
+          <button class="mode-btn btn-mix" data-op="mix">
+            <span class="btn-emoji">🎲</span> Mix All
+          </button>
+        </div>
+      </section>
+
+
+      <!-- 2. DIFFICULTY SELECTION SCREEN -->
+      <section id="screen-difficulty" class="screen">
+        <h2 class="section-title">Difficulty</h2>
+        <p class="subtitle">Select your level:</p>
+
+        <div class="difficulty-list">
+          <button class="diff-btn btn-easy" data-diff="EASY">🟢 Easy</button>
+          <button class="diff-btn btn-med" data-diff="MEDIUM">🟡 Medium</button>
+          <button class="diff-btn btn-hard" data-diff="HARD">🔴 Hard</button>
+          <button id="btn-diff-back" class="nav-back-btn">🔙 Back</button>
+        </div>
+      </section>
+
+
+      <!-- 3. PLAYING GAMEPLAY SCREEN -->
+      <section id="screen-playing" class="screen">
+        <div class="game-top-bar">
+          <h2 class="playing-title">🧮 Let's Play Math!</h2>
+          <div class="question-tracker">
+            Question <span id="q-current">1</span>/<span id="q-total">10</span>
+          </div>
+          <div class="score-tracker">
+            ⭐ Score: <span id="current-score">0</span>
+          </div>
+        </div>
+
+        <div id="streak-banner" class="streak-banner hidden">
+          🔥 Streak x<span id="streak-count">2</span>
+        </div>
+
+        <div class="progress-bar-bg">
+          <div id="progress-bar-fill" class="progress-bar-fill"></div>
+        </div>
+
+        <div id="math-card" class="math-card">
+          <div id="question-text" class="question-text">2 + 3 = ?</div>
+        </div>
+
+        <button id="btn-read-q" class="read-btn">🔈 Read Question</button>
+
+        <div id="msg-feedback" class="feedback-toast hidden"></div>
+
+        <div id="options-grid" class="options-grid">
+          <button class="option-btn" data-index="0">0</button>
+          <button class="option-btn" data-index="1">0</button>
+          <button class="option-btn" data-index="2">0</button>
+          <button class="option-btn" data-index="3">0</button>
+        </div>
+      </section>
+
+
+      <!-- 4. AVATAR SHOP SCREEN -->
+      <section id="screen-shop" class="screen">
+        <h2 class="section-title">Avatar Shop</h2>
+        <div class="shop-coin-header">
+          Your Coins: <span id="shop-coin-count">0</span> 🪙
+        </div>
+
+        <div id="shop-items-container" class="shop-items-grid">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <button id="btn-shop-back" class="nav-back-btn">🔙 Back</button>
+      </section>
+
+
+      <!-- 5. RESULT SCORE SCREEN -->
+      <section id="screen-result" class="screen">
+        <div class="result-card">
+          <h2 id="result-emoji-title">🏆 Game Finished 🏆</h2>
+          
+          <div class="stars-row">
+            <span class="star-item" id="star-1">⭐</span>
+            <span class="star-item" id="star-2">⭐</span>
+            <span class="star-item" id="star-3">⭐</span>
+          </div>
+
+          <div id="final-score-display" class="final-score">8 / 10</div>
+          <div id="final-message" class="final-message">Great Job!</div>
+          <div id="coins-earned-display" class="coins-earned">+40 🪙 Earned!</div>
+
+          <div class="result-actions">
+            <button id="btn-play-again" class="action-btn btn-again">🔄 Play Again</button>
+            <button id="btn-result-menu" class="action-btn btn-menu">🏠 Menu</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
