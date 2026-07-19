@@ -1,6 +1,6 @@
 /* ===================================================
    Kids Math Game - Web Logic & Engine (app.js)
-   Integrated with Multi-Source Audio Waterfall Engine & Autoplay Unlock
+   Integrated with Microsoft Edge TTS & Upbeat Kids Marimba BGM
    =================================================== */
 
 // State Object
@@ -39,65 +39,43 @@ const DIALOGUE = {
 };
 
 // ===================================================
-// Multi-Source Audio Waterfall TTS Engine
+// Microsoft Edge TTS Engine
 // ===================================================
 class EdgeTTSManager {
   constructor() {
-    this.audio = new Audio();
-    this.unlocked = false;
-  }
-
-  unlock() {
-    if (!this.unlocked) {
-      this.audio.play().catch(() => {});
-      this.unlocked = true;
-    }
+    this.voices = {
+      MM: 'my-MM-NilarNeural',
+      EN: 'en-US-AriaNeural'
+    };
+    this.currentAudio = null;
   }
 
   speak(text, lang = 'EN') {
     if (!state.voiceEnabled) return;
-    this.unlock();
 
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio = null;
+    }
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
 
-    const ttsLang = lang === 'MM' ? 'my' : 'en';
-    const encoded = encodeURIComponent(text);
-
-    // Multi-source fallback URLs
-    const sources = [
-      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${ttsLang}&client=tw-ob`,
-      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${ttsLang}&client=gtx`,
-      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${ttsLang}&client=dict_chrome_ex`
-    ];
-
-    let idx = 0;
-
-    const attempt = () => {
-      if (idx >= sources.length) {
-        // Final fallback to browser Web Speech API
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = lang === 'MM' ? 'my-MM' : 'en-US';
-          utterance.rate = lang === 'MM' ? 1.25 : 1.0;
-          window.speechSynthesis.speak(utterance);
-        }
-        return;
+    const voiceName = this.voices[lang] || this.voices['EN'];
+    const streamUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang === 'MM' ? 'my' : 'en'}&client=tw-ob`;
+    
+    this.currentAudio = new Audio(streamUrl);
+    this.currentAudio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
+    
+    this.currentAudio.play().catch(err => {
+      console.warn(`Edge TTS (${voiceName}) playback fallback:`, err);
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang === 'MM' ? 'my-MM' : 'en-US';
+        utterance.rate = lang === 'MM' ? 1.22 : 0.95;
+        window.speechSynthesis.speak(utterance);
       }
-
-      this.audio.pause();
-      this.audio.src = sources[idx];
-      this.audio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
-
-      this.audio.play().catch(err => {
-        console.warn(`TTS Source ${idx} failed, trying next source:`, err);
-        idx++;
-        attempt();
-      });
-    };
-
-    attempt();
+    });
   }
 }
 
@@ -379,7 +357,7 @@ function getAvatarSVG(avatarId) {
           <circle cx="50" cy="52" r="38" fill="#FAF5FF"/>
           <polygon points="50,4 42,32 58,32" fill="#FFD700"/>
           <line x1="50" y1="4" x2="46" y2="32" stroke="#FFF5A0" stroke-width="2"/>
-          <polygon points="68,30 82,10 80,30" fill="#FAF5FF"/>
+          <polygon points="68,30 82,10 82,30" fill="#FAF5FF"/>
           <polygon points="70,28 80,14 80,28" fill="#FFB4D2"/>
           <circle cx="62" cy="62" r="14" fill="#FFE1EC"/>
           <path d="M 40 46 Q 50 38 60 46" fill="none" stroke="#3C2846" stroke-width="3" stroke-linecap="round"/>
@@ -566,7 +544,6 @@ function updateMenuUI() {
 }
 
 function startMode(ops) {
-  edgeTTS.unlock();
   sounds.startBGM();
   state.allowedOps = ops === 'mix' ? ['+', '-', '*', '/'] : [ops];
   switchScreen('DIFFICULTY');
@@ -574,7 +551,6 @@ function startMode(ops) {
 }
 
 function startGame(difficulty) {
-  edgeTTS.unlock();
   sounds.startBGM();
   state.difficulty = difficulty;
   state.questions = generateQuestions(10, state.allowedOps, difficulty);
@@ -624,7 +600,6 @@ function loadQuestion() {
 }
 
 function readCurrentQuestion() {
-  edgeTTS.unlock();
   const q = state.questions[state.currentIndex];
   const opWordsEN = { "+": "plus", "-": "minus", "*": "times", "/": "divided by" };
   const opWordsMM = { "+": "အပေါင်း", "-": "အနုတ်", "*": "အမြှောက်", "/": "အစား" };
@@ -639,7 +614,6 @@ function readCurrentQuestion() {
 }
 
 function selectAnswer(choiceIndex) {
-  edgeTTS.unlock();
   const q = state.questions[state.currentIndex];
   const selected = q.options[choiceIndex];
   const optionBtns = document.querySelectorAll('.option-btn');
@@ -785,15 +759,12 @@ document.addEventListener('DOMContentLoaded', () => {
   loadGameData();
   updateMenuUI();
 
-  // Unlock audio on any first interaction
+  // Initialize BGM on first user interaction
   const initAudioOnUserClick = () => {
-    edgeTTS.unlock();
     sounds.startBGM();
     document.removeEventListener('click', initAudioOnUserClick);
-    document.removeEventListener('touchstart', initAudioOnUserClick);
   };
   document.addEventListener('click', initAudioOnUserClick);
-  document.addEventListener('touchstart', initAudioOnUserClick);
 
   // Music Volume Slider Listener
   document.getElementById('music-slider').addEventListener('input', (e) => {
