@@ -1,6 +1,6 @@
 /* ===================================================
    Kids Math Game - Web Logic & Engine (app.js)
-   Integrated with Microsoft Edge TTS & Upbeat Kids Marimba BGM
+   Integrated with High-Reliability Online Burmese & English TTS
    =================================================== */
 
 // State Object
@@ -39,7 +39,7 @@ const DIALOGUE = {
 };
 
 // ===================================================
-// Microsoft Edge TTS Engine
+// Reliable Online Speech Engine (Burmese & English)
 // ===================================================
 class EdgeTTSManager {
   constructor() {
@@ -61,20 +61,33 @@ class EdgeTTSManager {
       window.speechSynthesis.cancel();
     }
 
-    const voiceName = this.voices[lang] || this.voices['EN'];
-    const streamUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang === 'MM' ? 'my' : 'en'}&client=tw-ob`;
+    const ttsLang = lang === 'MM' ? 'my' : 'en';
+
+    // Primary Stream: High-compatibility HTTPS endpoint for GitHub Pages
+    const streamUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${ttsLang}&client=gtx`;
     
-    this.currentAudio = new Audio(streamUrl);
-    this.currentAudio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
-    
-    this.currentAudio.play().catch(err => {
-      console.warn(`Edge TTS (${voiceName}) playback fallback:`, err);
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang === 'MM' ? 'my-MM' : 'en-US';
-        utterance.rate = lang === 'MM' ? 1.22 : 0.95;
-        window.speechSynthesis.speak(utterance);
-      }
+    const audio = new Audio();
+    audio.crossOrigin = "anonymous";
+    audio.src = streamUrl;
+    audio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
+    this.currentAudio = audio;
+
+    audio.play().catch(err => {
+      console.warn("Primary Audio Stream failed, switching fallback:", err);
+      const altUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${ttsLang}&client=tw-ob`;
+      const altAudio = new Audio(altUrl);
+      altAudio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
+      this.currentAudio = altAudio;
+      
+      altAudio.play().catch(e => {
+        console.warn("SpeechSynthesis Fallback:", e);
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang === 'MM' ? 'my-MM' : 'en-US';
+          utterance.rate = lang === 'MM' ? 1.22 : 0.95;
+          window.speechSynthesis.speak(utterance);
+        }
+      });
     });
   }
 }
@@ -357,7 +370,7 @@ function getAvatarSVG(avatarId) {
           <circle cx="50" cy="52" r="38" fill="#FAF5FF"/>
           <polygon points="50,4 42,32 58,32" fill="#FFD700"/>
           <line x1="50" y1="4" x2="46" y2="32" stroke="#FFF5A0" stroke-width="2"/>
-          <polygon points="68,30 82,10 82,30" fill="#FAF5FF"/>
+          <polygon points="68,30 82,10 80,30" fill="#FAF5FF"/>
           <polygon points="70,28 80,14 80,28" fill="#FFB4D2"/>
           <circle cx="62" cy="62" r="14" fill="#FFE1EC"/>
           <path d="M 40 46 Q 50 38 60 46" fill="none" stroke="#3C2846" stroke-width="3" stroke-linecap="round"/>
