@@ -1,6 +1,6 @@
 /* ===================================================
    Kids Math Game - Web Logic & Engine (app.js)
-   Integrated with Microsoft Edge TTS & Upbeat Kids Marimba BGM
+   Integrated with iOS Safari Audio Unlocker & Microsoft Edge TTS
    =================================================== */
 
 // State Object
@@ -39,7 +39,7 @@ const DIALOGUE = {
 };
 
 // ===================================================
-// Microsoft Edge TTS Engine
+// Microsoft Edge TTS Engine (iOS Safari Compatible)
 // ===================================================
 class EdgeTTSManager {
   constructor() {
@@ -67,15 +67,18 @@ class EdgeTTSManager {
     this.currentAudio = new Audio(streamUrl);
     this.currentAudio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
     
-    this.currentAudio.play().catch(err => {
-      console.warn(`Edge TTS (${voiceName}) playback fallback:`, err);
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang === 'MM' ? 'my-MM' : 'en-US';
-        utterance.rate = lang === 'MM' ? 1.22 : 0.95;
-        window.speechSynthesis.speak(utterance);
-      }
-    });
+    const playPromise = this.currentAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(err => {
+        console.warn(`Edge TTS (${voiceName}) playback fallback:`, err);
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang === 'MM' ? 'my-MM' : 'en-US';
+          utterance.rate = lang === 'MM' ? 1.22 : 0.95;
+          window.speechSynthesis.speak(utterance);
+        }
+      });
+    }
   }
 }
 
@@ -122,7 +125,7 @@ function saveGameData() {
 }
 
 // ===================================================
-// Web Audio Synthesizer (Upbeat Kids Marimba BGM & SFX)
+// Web Audio Synthesizer & iOS Safari Unlocker
 // ===================================================
 class SoundEngine {
   constructor() {
@@ -130,24 +133,7 @@ class SoundEngine {
     this.masterBGMGain = null;
     this.bgmPlaying = false;
     this.bgmTimer = null;
-    
-    // Playful 8-bar Kids Nursery Melody (Twinkle / Playground Style)
-    this.melody = [
-      261.63, 261.63, 392.00, 392.00, 440.00, 440.00, 392.00, 0,
-      349.23, 349.23, 329.63, 329.63, 293.66, 293.66, 261.63, 0,
-      392.00, 392.00, 349.23, 349.23, 329.63, 329.63, 293.66, 0,
-      392.00, 392.00, 349.23, 349.23, 329.63, 329.63, 293.66, 0,
-      261.63, 261.63, 392.00, 392.00, 440.00, 440.00, 392.00, 0,
-      349.23, 349.23, 329.63, 329.63, 293.66, 293.66, 261.63, 0
-    ];
-    this.bass = [
-      130.81, 196.00, 130.81, 196.00, 174.61, 220.00, 130.81, 196.00,
-      174.61, 130.81, 164.81, 130.81, 196.00, 146.83, 130.81, 196.00,
-      130.81, 196.00, 174.61, 220.00, 130.81, 196.00, 196.00, 146.83,
-      130.81, 196.00, 174.61, 220.00, 130.81, 196.00, 196.00, 146.83,
-      130.81, 196.00, 130.81, 196.00, 174.61, 220.00, 130.81, 196.00,
-      174.61, 130.81, 164.81, 130.81, 196.00, 146.83, 130.81, 196.00
-    ];
+    this.bgmNotes = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
   }
 
   init() {
@@ -166,7 +152,7 @@ class SoundEngine {
   setBGMVolume(val) {
     this.init();
     if (this.masterBGMGain) {
-      const gainVal = parseFloat(val) * 0.35;
+      const gainVal = parseFloat(val) * 0.3;
       this.masterBGMGain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
     }
   }
@@ -176,57 +162,29 @@ class SoundEngine {
     if (this.bgmPlaying) return;
     this.bgmPlaying = true;
     let step = 0;
+    const pattern = [0, 2, 4, 3, 1, 3, 5, 2];
 
     this.bgmTimer = setInterval(() => {
       if (!this.bgmPlaying || !this.ctx) return;
       const now = this.ctx.currentTime;
-      
-      const mFreq = this.melody[step % this.melody.length];
-      const bFreq = this.bass[step % this.bass.length];
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      const freq = this.bgmNotes[pattern[step % pattern.length]];
       step++;
 
-      // Playful Marimba Lead
-      if (mFreq > 0) {
-        const osc1 = this.ctx.createOscillator();
-        const osc2 = this.ctx.createOscillator();
-        const leadGain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
 
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(mFreq, now);
-        osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(mFreq * 2, now);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
 
-        leadGain.gain.setValueAtTime(0.12, now);
-        leadGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.connect(gain);
+      gain.connect(this.masterBGMGain);
 
-        osc1.connect(leadGain);
-        osc2.connect(leadGain);
-        leadGain.connect(this.masterBGMGain);
-
-        osc1.start(now);
-        osc2.start(now);
-        osc1.stop(now + 0.25);
-        osc2.stop(now + 0.25);
-      }
-
-      // Bouncy Bass
-      if (bFreq > 0) {
-        const bassOsc = this.ctx.createOscillator();
-        const bassGain = this.ctx.createGain();
-
-        bassOsc.type = 'sine';
-        bassOsc.frequency.setValueAtTime(bFreq, now);
-
-        bassGain.gain.setValueAtTime(0.08, now);
-        bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
-        bassOsc.connect(bassGain);
-        bassGain.connect(this.masterBGMGain);
-
-        bassOsc.start(now);
-        bassOsc.stop(now + 0.22);
-      }
-    }, 280); // Upbeat 280ms tempo
+      osc.start(now);
+      osc.stop(now + 0.4);
+    }, 450);
   }
 
   stopBGM() {
@@ -297,6 +255,31 @@ class SoundEngine {
 }
 
 const sounds = new SoundEngine();
+
+// iOS Safari Universal Audio Unlocker
+function unlockIOSAudio() {
+  sounds.init();
+  if (sounds.ctx && sounds.ctx.state === 'suspended') {
+    sounds.ctx.resume();
+  }
+
+  // Play silent WAV frame to unlock iOS HTML5 Audio
+  const silent = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+  silent.play().catch(() => {});
+
+  if ('speechSynthesis' in window) {
+    const dummy = new SpeechSynthesisUtterance('');
+    window.speechSynthesis.speak(dummy);
+  }
+
+  sounds.startBGM();
+
+  document.removeEventListener('click', unlockIOSAudio);
+  document.removeEventListener('touchstart', unlockIOSAudio);
+}
+
+document.addEventListener('click', unlockIOSAudio);
+document.addEventListener('touchstart', unlockIOSAudio);
 
 // ===================================================
 // Vector SVG Avatar Generator
@@ -544,14 +527,14 @@ function updateMenuUI() {
 }
 
 function startMode(ops) {
-  sounds.startBGM();
+  unlockIOSAudio();
   state.allowedOps = ops === 'mix' ? ['+', '-', '*', '/'] : [ops];
   switchScreen('DIFFICULTY');
   speakDialogue('SELECT_DIFF');
 }
 
 function startGame(difficulty) {
-  sounds.startBGM();
+  unlockIOSAudio();
   state.difficulty = difficulty;
   state.questions = generateQuestions(10, state.allowedOps, difficulty);
   state.currentIndex = 0;
@@ -600,6 +583,7 @@ function loadQuestion() {
 }
 
 function readCurrentQuestion() {
+  unlockIOSAudio();
   const q = state.questions[state.currentIndex];
   const opWordsEN = { "+": "plus", "-": "minus", "*": "times", "/": "divided by" };
   const opWordsMM = { "+": "အပေါင်း", "-": "အနုတ်", "*": "အမြှောက်", "/": "အစား" };
@@ -614,7 +598,7 @@ function readCurrentQuestion() {
 }
 
 function selectAnswer(choiceIndex) {
-  const q = state.questions[state.currentIndex];
+  const q = state.questions[choiceIndex] ? state.questions[state.currentIndex] : state.questions[0];
   const selected = q.options[choiceIndex];
   const optionBtns = document.querySelectorAll('.option-btn');
 
@@ -758,13 +742,6 @@ function renderShop() {
 document.addEventListener('DOMContentLoaded', () => {
   loadGameData();
   updateMenuUI();
-
-  // Initialize BGM on first user interaction
-  const initAudioOnUserClick = () => {
-    sounds.startBGM();
-    document.removeEventListener('click', initAudioOnUserClick);
-  };
-  document.addEventListener('click', initAudioOnUserClick);
 
   // Music Volume Slider Listener
   document.getElementById('music-slider').addEventListener('input', (e) => {
