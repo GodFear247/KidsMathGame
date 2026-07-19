@@ -1,6 +1,6 @@
 /* ===================================================
    Kids Math Game - Web Logic & Engine (app.js)
-   Integrated with 100% Reliable Blob-based Burmese Female TTS
+   Integrated with Multi-Source Audio Waterfall Engine & Autoplay Unlock
    =================================================== */
 
 // State Object
@@ -39,73 +39,65 @@ const DIALOGUE = {
 };
 
 // ===================================================
-// Ultra-Reliable Blob-based TTS Engine (Burmese & English)
+// Multi-Source Audio Waterfall TTS Engine
 // ===================================================
 class EdgeTTSManager {
   constructor() {
-    this.currentAudio = null;
-    this.audioCache = new Map();
+    this.audio = new Audio();
+    this.unlocked = false;
   }
 
-  async speak(text, lang = 'EN') {
-    if (!state.voiceEnabled) return;
-
-    // Stop previous audio
-    if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio = null;
+  unlock() {
+    if (!this.unlocked) {
+      this.audio.play().catch(() => {});
+      this.unlocked = true;
     }
+  }
+
+  speak(text, lang = 'EN') {
+    if (!state.voiceEnabled) return;
+    this.unlock();
+
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
 
     const ttsLang = lang === 'MM' ? 'my' : 'en';
+    const encoded = encodeURIComponent(text);
 
-    // 1. Try Blob Proxy Fetching (Bypasses GitHub Pages CORS / Referrer restrictions)
-    try {
-      const cacheKey = `${lang}_${text}`;
-      let audioUrl = this.audioCache.get(cacheKey);
+    // Multi-source fallback URLs
+    const sources = [
+      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${ttsLang}&client=tw-ob`,
+      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${ttsLang}&client=gtx`,
+      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${ttsLang}&client=dict_chrome_ex`
+    ];
 
-      if (!audioUrl) {
-        const rawUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${ttsLang}&client=tw-ob`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
-        
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error("Proxy fetch failed");
-        
-        const blob = await response.blob();
-        audioUrl = URL.createObjectURL(blob);
-        this.audioCache.set(cacheKey, audioUrl);
+    let idx = 0;
+
+    const attempt = () => {
+      if (idx >= sources.length) {
+        // Final fallback to browser Web Speech API
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang === 'MM' ? 'my-MM' : 'en-US';
+          utterance.rate = lang === 'MM' ? 1.25 : 1.0;
+          window.speechSynthesis.speak(utterance);
+        }
+        return;
       }
 
-      const audio = new Audio(audioUrl);
-      audio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
-      this.currentAudio = audio;
-      await audio.play();
-      return;
-    } catch (err) {
-      console.warn("Blob TTS Fetch error, trying direct audio element:", err);
-    }
+      this.audio.pause();
+      this.audio.src = sources[idx];
+      this.audio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
 
-    // 2. Fallback: Direct Audio Stream Element
-    try {
-      const streamUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${ttsLang}&client=gtx`;
-      const audio = new Audio(streamUrl);
-      audio.playbackRate = lang === 'MM' ? 1.25 : 1.0;
-      this.currentAudio = audio;
-      await audio.play();
-      return;
-    } catch (err) {
-      console.warn("Direct stream failed:", err);
-    }
+      this.audio.play().catch(err => {
+        console.warn(`TTS Source ${idx} failed, trying next source:`, err);
+        idx++;
+        attempt();
+      });
+    };
 
-    // 3. Fallback: Web Speech Synthesis
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang === 'MM' ? 'my-MM' : 'en-US';
-      utterance.rate = lang === 'MM' ? 1.22 : 0.95;
-      window.speechSynthesis.speak(utterance);
-    }
+    attempt();
   }
 }
 
@@ -574,6 +566,7 @@ function updateMenuUI() {
 }
 
 function startMode(ops) {
+  edgeTTS.unlock();
   sounds.startBGM();
   state.allowedOps = ops === 'mix' ? ['+', '-', '*', '/'] : [ops];
   switchScreen('DIFFICULTY');
@@ -581,6 +574,7 @@ function startMode(ops) {
 }
 
 function startGame(difficulty) {
+  edgeTTS.unlock();
   sounds.startBGM();
   state.difficulty = difficulty;
   state.questions = generateQuestions(10, state.allowedOps, difficulty);
@@ -630,6 +624,7 @@ function loadQuestion() {
 }
 
 function readCurrentQuestion() {
+  edgeTTS.unlock();
   const q = state.questions[state.currentIndex];
   const opWordsEN = { "+": "plus", "-": "minus", "*": "times", "/": "divided by" };
   const opWordsMM = { "+": "အပေါင်း", "-": "အနုတ်", "*": "အမြှောက်", "/": "အစား" };
@@ -644,6 +639,7 @@ function readCurrentQuestion() {
 }
 
 function selectAnswer(choiceIndex) {
+  edgeTTS.unlock();
   const q = state.questions[state.currentIndex];
   const selected = q.options[choiceIndex];
   const optionBtns = document.querySelectorAll('.option-btn');
@@ -789,12 +785,15 @@ document.addEventListener('DOMContentLoaded', () => {
   loadGameData();
   updateMenuUI();
 
-  // Initialize BGM on first user interaction
+  // Unlock audio on any first interaction
   const initAudioOnUserClick = () => {
+    edgeTTS.unlock();
     sounds.startBGM();
     document.removeEventListener('click', initAudioOnUserClick);
+    document.removeEventListener('touchstart', initAudioOnUserClick);
   };
   document.addEventListener('click', initAudioOnUserClick);
+  document.addEventListener('touchstart', initAudioOnUserClick);
 
   // Music Volume Slider Listener
   document.getElementById('music-slider').addEventListener('input', (e) => {
